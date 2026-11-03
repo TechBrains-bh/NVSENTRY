@@ -1,0 +1,139 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#f5f7f4">
+  <title>Daily Shop Entry — Fieldnote</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <div class="app-shell">
+    <aside class="sidebar" aria-label="Main navigation">
+      <a class="brand" href="#entry" aria-label="Fieldnote home">
+        <span class="brand-mark">F</span><span>fieldnote<span class="brand-dot">.</span><small>SHOP JOURNAL</small></span>
+      </a>
+      <div class="nav-label">WORKSPACE</div>
+      <a class="nav-item active" href="#entry" data-screen-link="entry"><span class="nav-icon">✎</span> Daily entry <span class="nav-arrow">›</span></a>
+      <a class="nav-item" href="#history" data-screen-link="history"><span class="nav-icon">▤</span> Past entries</a>
+      <a class="nav-item" href="#summary" data-screen-link="summary"><span class="nav-icon">▥</span> Shop summary</a>
+      <div class="sidebar-bottom"><div class="help-badge">?</div><div><strong>Need a hand?</strong><span>Ask someone you trust to help set up your sheet.</span></div></div>
+    </aside>
+
+    <main class="main-content" id="entry">
+      <header class="topbar">
+        <div class="breadcrumb"><span>Workspace</span><b>/</b><strong id="current-screen-title">Daily entry</strong></div>
+        <div class="profile"><span class="status-dot"></span><span class="profile-name">Shop owner</span><div class="avatar">S</div></div>
+      </header>
+
+      <div class="page-wrap screen" id="entry-screen">
+        <section class="page-heading">
+          <div><div class="eyebrow"><span class="eyebrow-dot"></span> DAILY SHOP RECORD</div><h1>Today’s entry</h1><p class="page-subtitle">A simple place to note what came in and went out.</p></div>
+          <label class="date-control"><span class="date-icon">▦</span><span class="date-label"><small>ENTRY DATE</small><input id="entry-date" type="date" aria-label="Entry date"></span></label>
+        </section>
+
+        <div class="draft-banner"><span class="draft-icon">✦</span><span class="banner-message"><strong>Your daily sheet</strong> <span class="banner-copy">Fill in what you know. You can leave a box empty for now.</span></span><button class="voice-start" id="start-voice" type="button"><span>🎙️</span> हिन्दी में बोलकर भरें</button><span class="draft-tag">NEW ENTRY</span></div>
+        <div class="voice-status" id="voice-status" role="status" aria-live="polite">किसी माइक पर एक बार दबाएँ। हर जवाब के बाद अगला सवाल अपने आप आएगा। “अगला” कहकर छोड़ें या “रुको” कहकर रोकें। Voice entry needs microphone access and may use your browser’s online speech service.</div>
+
+        <div class="content-grid">
+          <form class="entry-form" id="entry-form" aria-label="Daily shop entry">
+            <section class="form-card">
+              <div class="section-head"><div class="section-icon green">🐔</div><div><h2>Chicken &amp; stock</h2><p>What arrived, what came forward, and what is left</p></div><span class="section-step">01</span></div>
+              <div class="field-grid">
+                <label class="field"><span class="field-label">Boiler chicken bought <span class="hint-icon" title="Number of pieces bought today">i</span></span><span class="input-wrap"><span class="input-symbol">🐔</span><input type="number" placeholder="e.g. 7" inputmode="decimal"><span class="unit">pieces</span></span></label>
+                <label class="field"><span class="field-label">Desi chicken bought</span><span class="input-wrap"><span class="input-symbol">🐓</span><input type="number" placeholder="e.g. 2" inputmode="decimal"><span class="unit">pieces</span></span></label>
+                <label class="field"><span class="field-label">Boiler purchase cost</span><span class="input-wrap"><span class="input-symbol">🧾</span><span class="currency">₹</span><input type="number" placeholder="Amount paid" inputmode="decimal"></span></label>
+                <label class="field"><span class="field-label">Desi purchase cost</span><span class="input-wrap"><span class="input-symbol">🧾</span><span class="currency">₹</span><input type="number" placeholder="Amount paid" inputmode="decimal"></span></label>
+                <label class="field"><span class="field-label">Opening Boiler stock <span class="auto-tag">AUTO · PREVIOUS CLOSE</span></span><span class="input-wrap carried"><span class="input-symbol">📦</span><input type="text" value="—" disabled aria-label="Opening Boiler stock, automatically copied from previous closing stock"><span class="unit">pieces</span></span></label>
+                <label class="field"><span class="field-label">Opening Desi stock <span class="auto-tag">AUTO · PREVIOUS CLOSE</span></span><span class="input-wrap carried"><span class="input-symbol">📦</span><input type="text" value="—" disabled aria-label="Opening Desi stock, automatically copied from previous closing stock"><span class="unit">pieces</span></span></label>
+                <label class="field"><span class="field-label">Boiler chicken chopped</span><span class="input-wrap"><span class="input-symbol">🔪</span><input type="number" placeholder="e.g. 20" inputmode="decimal"><span class="unit">pieces</span></span></label>
+                <label class="field"><span class="field-label">Desi chicken chopped</span><span class="input-wrap"><span class="input-symbol">🔪</span><input type="number" placeholder="e.g. 0" inputmode="decimal"><span class="unit">pieces</span></span></label>
+                <label class="field"><span class="field-label">Closing Boiler stock</span><span class="input-wrap"><span class="input-symbol">📦</span><input type="number" placeholder="e.g. 0" inputmode="decimal"><span class="unit">pieces</span></span></label>
+                <label class="field"><span class="field-label">Closing Desi stock</span><span class="input-wrap"><span class="input-symbol">📦</span><input type="number" placeholder="e.g. 0" inputmode="decimal"><span class="unit">pieces</span></span></label>
+                <label class="field"><span class="field-label">Total weight sold</span><span class="input-wrap"><span class="input-symbol">⚖️</span><input type="number" placeholder="e.g. 23.8" inputmode="decimal"><span class="unit">kg</span></span></label>
+                <label class="field"><span class="field-label">Chicken wasted</span><span class="input-wrap"><span class="input-symbol">♻️</span><input type="number" placeholder="e.g. 0" inputmode="decimal"><span class="unit">grams</span></span></label>
+                <label class="field"><span class="field-label">Dead chicken</span><span class="input-wrap"><span class="input-symbol">🐔</span><input type="number" placeholder="Enter amount"><span class="unit">pieces</span></span></label>
+              </div>
+            </section>
+
+            <section class="form-card">
+              <div class="section-head"><div class="section-icon amber">💰</div><div><h2>Today’s money</h2><p>Sales and the cash kept at the counter</p></div><span class="section-step">02</span></div>
+              <div class="field-grid">
+                <label class="field"><span class="field-label">Total sales</span><span class="input-wrap"><span class="input-symbol">🧾</span><span class="currency">₹</span><input type="number" placeholder="e.g. 6,378" inputmode="decimal"></span></label>
+                <label class="field"><span class="field-label">Cash received</span><span class="input-wrap"><span class="input-symbol">💵</span><span class="currency">₹</span><input type="number" placeholder="e.g. 1,950" inputmode="decimal"></span></label>
+                <label class="field"><span class="field-label">Paytm received</span><span class="input-wrap"><span class="input-symbol">📱</span><span class="currency">₹</span><input type="number" placeholder="e.g. 4,428" inputmode="decimal"></span></label>
+                <label class="field"><span class="field-label">PhonePe received</span><span class="input-wrap"><span class="input-symbol">📲</span><span class="currency">₹</span><input type="number" placeholder="e.g. 0" inputmode="decimal"></span></label>
+                <label class="field"><span class="field-label">Opening counter cash <span class="auto-tag">AUTO · PREVIOUS CLOSE</span></span><span class="input-wrap carried"><span class="input-symbol">🪙</span><span class="currency">₹</span><input type="text" value="—" disabled aria-label="Opening counter cash, automatically copied from previous closing cash"></span></label>
+                <label class="field"><span class="field-label">Closing counter cash</span><span class="input-wrap"><span class="input-symbol">🪙</span><span class="currency">₹</span><input type="number" placeholder="e.g. 4,272" inputmode="decimal"></span></label>
+                <label class="field"><span class="field-label">Cash taken out by Bahadur</span><span class="input-wrap"><span class="input-symbol">🤝</span><span class="currency">₹</span><input type="number" placeholder="e.g. 100" inputmode="decimal"></span></label>
+              </div>
+              <div class="note-strip"><span>💡</span><span>Enter the amount shown on your bill, phone, or cash count.</span></div>
+            </section>
+
+            <section class="form-card">
+              <div class="section-head"><div class="section-icon blue">👥</div><div><h2>Customers</h2><p>People who bought from the shop today</p></div><span class="section-step">03</span></div>
+              <div class="field-grid two-fields">
+                <label class="field"><span class="field-label">New customers</span><span class="input-wrap"><span class="input-symbol">🆕</span><input type="number" placeholder="e.g. 2" inputmode="numeric"><span class="unit">people</span></span></label>
+                <label class="field"><span class="field-label">Returning customers</span><span class="input-wrap"><span class="input-symbol">🔁</span><input type="number" placeholder="e.g. 18" inputmode="numeric"><span class="unit">people</span></span></label>
+              </div>
+            </section>
+
+            <section class="form-card">
+              <div class="section-head"><div class="section-icon rose">📋</div><div><h2>Other payments &amp; notes</h2><p>Expenses, pending amounts, and other items</p></div><span class="section-step">04</span></div>
+              <div class="field-grid">
+                <label class="field"><span class="field-label">Miscellaneous expense</span><span class="input-wrap"><span class="input-symbol">🧺</span><span class="currency">₹</span><input type="number" placeholder="Amount"></span></label>
+                <label class="field"><span class="field-label">Dalia</span><span class="input-wrap"><span class="input-symbol">📝</span><span class="currency">₹</span><input type="number" placeholder="Amount"></span></label>
+                <label class="field"><span class="field-label">Dead chicken cost</span><span class="input-wrap"><span class="input-symbol">🐔</span><span class="currency">₹</span><input type="number" placeholder="Amount"></span></label>
+                <label class="field"><span class="field-label">Police</span><span class="input-wrap"><span class="input-symbol">📝</span><span class="currency">₹</span><input type="number" placeholder="Amount"></span></label>
+                <div class="repeat-entry-block" data-repeat-group="udhar">
+                  <div class="repeat-head"><div><strong>Udhar / credit</strong><span>Customer phone number and amount</span></div><button class="add-row" type="button" data-add-row="udhar"><span>＋</span> Add person</button></div>
+                  <div class="repeat-list" data-entry-list="udhar"><div class="repeat-row"><label class="field"><span class="field-label">Customer phone number</span><span class="input-wrap"><span class="input-symbol">📞</span><input type="tel" placeholder="10-digit phone number" inputmode="tel" aria-label="Udhar customer phone number"></span></label><label class="field"><span class="field-label">Udhar amount</span><span class="input-wrap"><span class="input-symbol">🤝</span><span class="currency">₹</span><input type="number" placeholder="Amount on credit" inputmode="decimal" aria-label="Udhar amount"></span></label></div></div>
+                </div>
+                <div class="repeat-entry-block" data-repeat-group="supplier">
+                  <div class="repeat-head"><div><strong>Supplier payment</strong><span>Supplier phone number and amount</span></div><button class="add-row" type="button" data-add-row="supplier"><span>＋</span> Add payment</button></div>
+                  <div class="repeat-list" data-entry-list="supplier"><div class="repeat-row"><label class="field"><span class="field-label">Supplier phone number</span><span class="input-wrap"><span class="input-symbol">📞</span><input type="tel" placeholder="10-digit phone number" inputmode="tel" aria-label="Supplier phone number"></span></label><label class="field"><span class="field-label">Payment amount</span><span class="input-wrap"><span class="input-symbol">💸</span><span class="currency">₹</span><input type="number" placeholder="Amount paid" inputmode="decimal" aria-label="Supplier payment amount"></span></label></div></div>
+                </div>
+                <label class="field"><span class="field-label">Bahadur salary</span><span class="input-wrap"><span class="input-symbol">👷</span><span class="currency">₹</span><input type="number" placeholder="Amount"></span></label>
+                <label class="field"><span class="field-label">Shop rent</span><span class="input-wrap"><span class="input-symbol">🏠</span><span class="currency">₹</span><input type="number" placeholder="Amount"></span></label>
+                <label class="field"><span class="field-label">Electricity bill</span><span class="input-wrap"><span class="input-symbol">⚡</span><span class="currency">₹</span><input type="number" placeholder="Amount"></span></label>
+                <label class="field"><span class="field-label">AP <span class="unconfirmed">NAME TO CONFIRM</span></span><span class="input-wrap"><span class="input-symbol">📝</span><span class="currency">₹</span><input type="number" placeholder="Amount"></span></label>
+                <label class="field"><span class="field-label">AG <span class="unconfirmed">NAME TO CONFIRM</span></span><span class="input-wrap"><span class="input-symbol">📝</span><span class="currency">₹</span><input type="number" placeholder="Amount"></span></label>
+              </div>
+            </section>
+            <div class="form-footer"><span id="save-status" role="status">New entries are drafts until you mark them complete.</span><div class="save-actions"><label class="entry-status-label">Mark as <select id="entry-status"><option value="draft">Draft</option><option value="complete">Complete</option></select></label><button class="save-button" id="save-entry" type="submit"><span>✓</span> Save entry</button></div></div>
+          </form>
+
+          <aside class="side-column">
+            <div class="summary-card"><div class="summary-top"><div><div class="eyebrow">QUICK LOOK</div><h3>Today at a glance</h3></div><div class="summary-icon">☀</div></div><div class="summary-row"><span><i class="mini-icon green-bg">🧾</i> Total sales</span><strong>₹ —</strong></div><div class="summary-row"><span><i class="mini-icon gold-bg">💵</i> Cash received</span><strong>₹ —</strong></div><div class="summary-row"><span><i class="mini-icon blue-bg">📱</i> Online received</span><strong>₹ —</strong></div><div class="summary-row"><span><i class="mini-icon lilac-bg">👥</i> Customers</span><strong>— people</strong></div><div class="summary-note">Your totals will appear here once the entry form is connected.</div></div>
+            <div class="tip-card"><div class="tip-heading"><span>🌱</span> A small tip</div><p>Go section by section. It’s okay to leave a field blank if you’re unsure.</p><div class="tip-decoration">✳</div></div>
+            <div class="legend-card"><div class="legend-title">EASY TO SPOT</div><div><span class="legend-dot green-dot"></span> Stock &amp; chicken</div><div><span class="legend-dot yellow-dot"></span> Money received</div><div><span class="legend-dot blue-dot"></span> Customers</div><div><span class="legend-dot rose-dot"></span> Expenses &amp; notes</div></div>
+          </aside>
+        </div>
+        <footer class="page-footer">FIELDNOTE <span>·</span> A clearer way to keep the day’s record</footer>
+      </div>
+
+      <section class="page-wrap screen" id="history-screen" hidden>
+        <div class="page-heading"><div><div class="eyebrow"><span class="eyebrow-dot"></span> YOUR RECORDS</div><h1>Past entries</h1><p class="page-subtitle">Open a saved day to review or make a change.</p></div></div>
+        <div class="history-toolbar"><label class="search-box">⌕ <input id="history-search" type="search" placeholder="Search by date"></label><span id="history-count">Loading entries…</span></div>
+        <div class="history-list" id="history-list"></div>
+      </section>
+
+      <section class="page-wrap screen" id="summary-screen" hidden>
+        <section class="page-heading"><div><div class="eyebrow"><span class="eyebrow-dot"></span> DAILY TOTALS</div><h1>Shop summary</h1><p class="page-subtitle">A clear snapshot of the selected day.</p></div><label class="date-control"><span class="date-icon">▦</span><span class="date-label"><small>SUMMARY DATE</small><input id="summary-date" type="date" aria-label="Summary date"></span></label></section>
+        <div class="stats-grid">
+          <article class="stat-card"><span class="stat-icon green">🧾</span><span class="stat-label">Total sales</span><strong id="sum-sales">₹0</strong></article>
+          <article class="stat-card"><span class="stat-icon amber">💵</span><span class="stat-label">Cash received</span><strong id="sum-cash">₹0</strong></article>
+          <article class="stat-card"><span class="stat-icon blue">📱</span><span class="stat-label">Online received</span><strong id="sum-online">₹0</strong></article>
+          <article class="stat-card"><span class="stat-icon violet">👥</span><span class="stat-label">Customers</span><strong id="sum-customers">0</strong></article>
+        </div>
+        <div class="summary-detail-grid">
+          <article class="detail-card"><h2>Money &amp; payments</h2><div class="detail-row"><span>Paytm</span><strong id="sum-paytm">₹0</strong></div><div class="detail-row"><span>PhonePe</span><strong id="sum-phonepe">₹0</strong></div><div class="detail-row"><span>Expenses and supplier payments</span><strong id="sum-expenses">₹0</strong></div><div class="detail-row"><span>Udhar / credit given</span><strong id="sum-udhar">₹0</strong></div><div class="check-message" id="payment-check"></div></article>
+          <article class="detail-card"><h2>Shop activity</h2><div class="detail-row"><span>New customers</span><strong id="sum-new-customers">0</strong></div><div class="detail-row"><span>Returning customers</span><strong id="sum-returning-customers">0</strong></div><div class="detail-row"><span>Weight sold</span><strong id="sum-weight">0 kg</strong></div><div class="detail-row"><span>Closing Boiler stock</span><strong id="sum-boiler-stock">—</strong></div><div class="detail-row"><span>Closing Desi stock</span><strong id="sum-desi-stock">—</strong></div><div class="detail-row"><span>Closing counter cash</span><strong id="sum-closing-cash">₹0</strong></div></article>
+        </div>
+      </section>
+    </main>
+  </div>
+  <nav class="mobile-nav" aria-label="Mobile navigation"><a class="mobile-active" href="#entry" data-screen-link="entry"><span>✎</span> Entry</a><a href="#history" data-screen-link="history"><span>▤</span> History</a><a href="#summary" data-screen-link="summary"><span>▥</span> Summary</a></nav>
+  <script src="app.js" defer></script>
+</body>
+</html>

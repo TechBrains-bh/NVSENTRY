@@ -1,0 +1,7 @@
+__pycache__/
+*.py[cod]
+daily_entries.sqlite3
+requirement_base
+.env
+.venv/
+venv/
