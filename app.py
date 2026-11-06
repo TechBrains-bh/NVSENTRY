@@ -2,33 +2,44 @@
 
 from __future__ import annotations
 
+import io
 import json
 import math
 import mimetypes
+import os
 import re
 import sqlite3
+from contextlib import contextmanager
 from datetime import date
+from http import HTTPStatus
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
+from typing import Iterator
 from urllib.parse import parse_qs, urlparse
 
 ROOT = Path(__file__).resolve().parent
-DB_PATH = ROOT / "daily_entries.sqlite3"
+DB_PATH = Path(os.environ.get("NVSENTRY_DB_PATH", ROOT / "daily_entries.sqlite3")).expanduser().resolve()
 HOST = "127.0.0.1"
 PORT = 8000
 
 
-def connect_db() -> sqlite3.Connection:
+@contextmanager
+def connect_db() -> Iterator[sqlite3.Connection]:
+    DB_PATH.parent.mkdir(parents=True, exist_ok=True)
     db = sqlite3.connect(DB_PATH)
-    db.row_factory = sqlite3.Row
-    db.execute(
-        """CREATE TABLE IF NOT EXISTS daily_entries (
-            entry_date TEXT PRIMARY KEY,
-            payload TEXT NOT NULL,
-            updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
-        )"""
-    )
-    return db
+    try:
+        db.row_factory = sqlite3.Row
+        db.execute(
+            """CREATE TABLE IF NOT EXISTS daily_entries (
+                entry_date TEXT PRIMARY KEY,
+                payload TEXT NOT NULL,
+                updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+            )"""
+        )
+        with db:
+            yield db
+    finally:
+        db.close()
 
 
 def valid_date(value: str) -> bool:
@@ -261,6 +272,56 @@ class Handler(BaseHTTPRequestHandler):
             if phone or amount:
                 result.append({"phone": phone, "amount": amount})
         return result
+
+
+class WSGIHandler(Handler):
+    def send_response(self, code: int, message: str | None = None) -> None:
+        self._status = code
+
+    def send_header(self, keyword: str, value: str) -> None:
+        self._response_headers.append((keyword, value))
+
+    def end_headers(self) -> None:
+        pass
+
+    def send_error(self, code: int, message: str | None = None, explain: str | None = None) -> None:
+        body = f"{HTTPStatus(code).phrase}\n".encode("utf-8")
+        self.send_response(code)
+        self.send_header("Content-Type", "text/plain; charset=utf-8")
+        self.send_header("Content-Length", str(len(body)))
+        self.end_headers()
+        self.wfile.write(body)
+
+
+def application(environ: dict, start_response) -> list[bytes]:
+    method = environ.get("REQUEST_METHOD", "GET").upper()
+    request = WSGIHandler.__new__(WSGIHandler)
+    request._status = 200
+    request._response_headers = []
+    request.wfile = io.BytesIO()
+    request.rfile = environ["wsgi.input"]
+    request.headers = {"Content-Length": environ.get("CONTENT_LENGTH") or "0"}
+    request.path = environ.get("PATH_INFO", "/")
+    query = environ.get("QUERY_STRING", "")
+    if query:
+        request.path += f"?{query}"
+
+    if method == "GET":
+        request.do_GET()
+    elif method == "POST":
+        request.do_POST()
+    else:
+        request._status = 405
+        request._response_headers.extend(
+            [("Content-Type", "text/plain; charset=utf-8"), ("Allow", "GET, POST")]
+        )
+        body = b"Method not allowed\n"
+        request._response_headers.append(("Content-Length", str(len(body))))
+        request.wfile.write(body)
+
+    status = request._status
+    start_response(f"{status} {HTTPStatus(status).phrase}", request._response_headers)
+    return [request.wfile.getvalue()]
 
 
 if __name__ == "__main__":
