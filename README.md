@@ -39,15 +39,43 @@ PythonAnywhere's free Beginner account can host the full app at
        sys.path.insert(0, project_home)
 
    os.environ["NVSENTRY_DB_PATH"] = "/home/your-username/.local/share/nvsentry.sqlite3"
+   os.environ["NVSENTRY_BOOTSTRAP_SECRET"] = "paste-a-private-random-secret-here"
 
    from app import application
    ```
 
-4. Click **Reload** on the Web tab. Visit the web app URL shown there.
+   Generate a secret in the Bash console with
+   `python -c 'import secrets; print(secrets.token_urlsafe(32))'`. Put it only in the
+   PythonAnywhere WSGI configuration, never in the GitHub repository. Click **Reload**
+   on the Web tab, visit the web app URL, and use the secret once to create the platform
+   owner account. After setup, remove the `NVSENTRY_BOOTSTRAP_SECRET` line from the WSGI
+   configuration and reload the app.
 
 The database is stored outside the cloned repository so code updates do not overwrite
-shop records. Keep a separate backup of that SQLite file; the app does not currently
-provide multi-user authentication or automatic backups.
+shop records. Back up the SQLite file before updating an existing deployment: old
+date-only ledger entries are moved into the first shop registered after this update.
+The first platform owner can register multiple shops, issue shop-owner invitations,
+and grant platform roles. Shop owners can register staff for their shops. Login codes
+are generated in the app and must currently be delivered privately by the issuer;
+WhatsApp delivery is not configured. Codes expire in 10 minutes and are single-use.
+Signed-in sessions expire after 24 hours. Keep a separate backup of the database; the
+app does not currently provide automatic backups.
+
+### Optional password sign-in for the designated account
+
+The account `9350025160` can use an account-specific password. After successful
+password sign-in, that account is granted the `platform_owner` role and can access
+every shop and its ledger, manage shop staff, and create shops. From the project root,
+run `python scripts/set_local_password.py` and enter a password of at least 12
+characters twice. The app writes only a salted password hash to `local_auth.json`;
+that root-level file is ignored by Git. Never remove it from `.gitignore`, commit it,
+or copy it into a public repository. Run the same command to change the password.
+
+Password sign-in is limited to that mobile number and locks after five failed attempts
+for 15 minutes. When the local password config is present, the sign-in page opens on
+the password form; other users can select **Use a one-time code instead**. On
+PythonAnywhere, run the command in a Bash console from `~/NVSENTRY`. This is an
+account-specific password, not a shared master code.
 
 ### Updating the deployed app
 

@@ -5,6 +5,9 @@ const entryForm = document.getElementById('entry-form');
 const saveButton = document.getElementById('save-entry');
 const saveStatus = document.getElementById('save-status');
 const moneyFormat = new Intl.NumberFormat(undefined, { maximumFractionDigits: 2 });
+const appShell = document.getElementById('app-shell');
+const authGate = document.getElementById('auth-gate');
+const manageDialog = document.getElementById('manage-dialog');
 let isDirty = false;
 let isSaving = false;
 let activeScreen = 'entry';
@@ -17,6 +20,10 @@ let voiceTarget = null;
 let voiceRun = 0;
 let voiceRecognition = null;
 let voiceTimer = null;
+let currentSession = null;
+let resumeSaveAfterLogin = false;
+let resumeSaveOptions = null;
+let passwordLoginAvailable = false;
 const SpeechRecognitionAPI = window.SpeechRecognition || window.webkitSpeechRecognition;
 
 function localDateString(date = new Date()) {
@@ -24,6 +31,179 @@ function localDateString(date = new Date()) {
   const month = String(date.getMonth() + 1).padStart(2, '0');
   const day = String(date.getDate()).padStart(2, '0');
   return `${year}-${month}-${day}`;
+}
+
+function showAuthGate(mode, message = '') {
+  authGate.hidden = false;
+  document.querySelector('.mobile-nav').hidden = true;
+  document.getElementById('bootstrap-form').hidden = mode !== 'bootstrap';
+  document.getElementById('login-form').hidden = mode !== 'login';
+  document.getElementById('password-login-form').hidden = mode !== 'password';
+  document.getElementById('use-password-login').hidden =
+    mode !== 'login' || !passwordLoginAvailable;
+  document.getElementById('auth-status').textContent = message;
+  if (mode === 'login') document.getElementById('login-phone').focus();
+  if (mode === 'password') document.getElementById('password-login-password').focus();
+}
+
+function showPreferredAuth(message = '') {
+  showAuthGate(passwordLoginAvailable ? 'password' : 'login', message);
+}
+
+async function applySession(session) {
+  currentSession = session;
+  appShell.hidden = false;
+  authGate.hidden = true;
+  document.querySelector('.mobile-nav').hidden = false;
+  manageDialog.hidden = true;
+  document.getElementById('profile-name').textContent = session.user.phone;
+  let shops = session.shops || [];
+  let activeShopId = session.active_shop_id;
+  if (shops.length && !shops.some((shop) => shop.id === activeShopId)) {
+    const response = await fetch(`${API}/active-shop`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ shop_id: shops[0].id }),
+    });
+    if (!response.ok) throw new Error('Could not select your shop.');
+    activeShopId = shops[0].id;
+  }
+  session.active_shop_id = activeShopId;
+  const selector = document.getElementById('shop-select');
+  selector.replaceChildren();
+  shops.forEach((shop) => {
+    const option = document.createElement('option');
+    option.value = shop.id;
+    option.textContent = `${shop.name} (${shop.role})`;
+    selector.append(option);
+  });
+  selector.hidden = shops.length < 2;
+  if (activeShopId) selector.value = String(activeShopId);
+  if (shops.length) {
+    const initialScreen = location.hash.replace('#', '');
+    if (resumeSaveAfterLogin) showScreen('entry');
+    else if (['history', 'summary'].includes(initialScreen)) showScreen(initialScreen);
+    else {
+      showScreen('entry');
+      await loadEntry();
+    }
+  } else {
+    showScreen('entry');
+    openManageDialog();
+    document.getElementById('manage-status').textContent =
+      'Register your first shop to begin. Your existing legacy ledger will be moved into the first shop created.';
+  }
+  if (resumeSaveAfterLogin && shops.length) {
+    resumeSaveAfterLogin = false;
+    const options = resumeSaveOptions;
+    resumeSaveOptions = null;
+    window.setTimeout(() => saveEntry(null, options || {}), 0);
+  }
+}
+
+async function initializeAuth() {
+  appShell.hidden = true;
+  try {
+    const setupResponse = await fetch(`${API}/setup`);
+    const setup = await setupResponse.json();
+    if (!setupResponse.ok) throw new Error(setup.error || 'Could not check account setup.');
+    passwordLoginAvailable = Boolean(setup.password_login_available);
+    if (!setup.initialized) {
+      showAuthGate(
+        'bootstrap',
+        'Initial setup is available only to the person with the private secret configured by the host.',
+      );
+      return;
+    }
+    const response = await fetch(`${API}/session`);
+    if (response.status === 401) {
+      showPreferredAuth(
+        passwordLoginAvailable
+          ? 'Sign in with the account password, or choose one-time code.'
+          : 'Ask an authorized owner for a single-use login code.',
+      );
+      return;
+    }
+    const session = await response.json();
+    if (!response.ok) throw new Error(session.error || 'Could not load your account.');
+    await applySession(session);
+  } catch (error) {
+    showPreferredAuth(error.message);
+  }
+}
+
+async function responseData(response) {
+  const data = await response.json();
+  if (response.status === 401) {
+    showPreferredAuth('Your 24-hour session expired. Sign in again to continue.');
+  }
+  if (!response.ok) throw new Error(data.error || 'The request could not be completed.');
+  return data;
+}
+
+async function refreshSession() {
+  const response = await fetch(`${API}/session`);
+  const data = await responseData(response);
+  await applySession(data);
+}
+
+async function openManageDialog() {
+  manageDialog.hidden = false;
+  const ownerCanCreate = currentSession?.user?.can_own_shop
+    || currentSession?.user?.platform_role === 'platform_owner';
+  document.getElementById('create-shop-form').hidden = !ownerCanCreate;
+  document.getElementById('issued-code').hidden = true;
+  const roleSelect = document.getElementById('invite-role');
+  roleSelect.replaceChildren();
+  const roleOptions = [];
+  const role = currentSession?.user?.platform_role;
+  if (role === 'platform_owner') {
+    roleOptions.push(
+      ['shop_owner', 'Shop owner'],
+      ['staff', 'Shop staff'],
+      ['platform_admin', 'Platform administrator'],
+      ['support_admin', 'Support administrator'],
+      ['support', 'Software support'],
+    );
+  } else if (role === 'platform_admin') {
+    roleOptions.push(['shop_owner', 'Shop owner'], ['staff', 'Shop staff']);
+  } else {
+    const active = (currentSession?.shops || []).find(
+      (shop) => String(shop.id) === document.getElementById('shop-select').value,
+    );
+    if (active?.role === 'owner') roleOptions.push(['staff', 'Shop staff']);
+  }
+  roleOptions.forEach(([value, label]) => {
+    const option = document.createElement('option');
+    option.value = value;
+    option.textContent = label;
+    roleSelect.append(option);
+  });
+  document.getElementById('issue-code-form').hidden = roleOptions.length === 0;
+  await loadStaff();
+}
+
+async function loadStaff() {
+  const list = document.getElementById('staff-list');
+  list.replaceChildren();
+  if (!currentSession?.shops?.length || !document.getElementById('shop-select').value) return;
+  try {
+    const response = await fetch(`${API}/staff`);
+    if (response.status === 403) return;
+    const data = await responseData(response);
+    data.staff.forEach((member) => {
+      const row = document.createElement('div');
+      row.className = 'staff-row';
+      const phone = document.createElement('span');
+      phone.textContent = member.phone;
+      const role = document.createElement('strong');
+      role.textContent = member.role;
+      row.append(phone, role);
+      list.append(row);
+    });
+  } catch (error) {
+    document.getElementById('manage-status').textContent = error.message;
+  }
 }
 
 function fieldKey(field) {
@@ -138,6 +318,10 @@ async function loadEntry() {
   setStatus('Loading this date…');
   try {
     const response = await fetch(`${API}/entry?date=${encodeURIComponent(entryDate.value)}`);
+    if (response.status === 401) {
+      showPreferredAuth('Your 24-hour session expired. Sign in again to continue.');
+      return;
+    }
     const data = await response.json();
     if (!response.ok) throw new Error(data.error || 'Could not load this date.');
     fillEntry(data);
@@ -176,6 +360,12 @@ async function saveEntry(event, { draft = false, autoSave = false } = {}) {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(entry),
     });
+    if (response.status === 401) {
+      resumeSaveAfterLogin = true;
+      resumeSaveOptions = { draft, autoSave };
+      showPreferredAuth('Your 24-hour session expired. Sign in again to finish saving this entry.');
+      return;
+    }
     const data = await response.json();
     if (!response.ok) throw new Error(data.error || 'Could not save this entry.');
     fillEntry(data.entry);
@@ -213,6 +403,10 @@ async function showHistory() {
   const search = document.getElementById('history-search');
   try {
     const response = await fetch(`${API}/entries`);
+    if (response.status === 401) {
+      showPreferredAuth('Your 24-hour session expired. Sign in again to continue.');
+      return;
+    }
     const data = await response.json();
     if (!response.ok) throw new Error(data.error || 'Could not load entries.');
     const entries = data.entries || [];
@@ -269,6 +463,10 @@ async function showSummary() {
   summaryDate.value = targetDate;
   try {
     const response = await fetch(`${API}/summary?date=${encodeURIComponent(targetDate)}`);
+    if (response.status === 401) {
+      showPreferredAuth('Your 24-hour session expired. Sign in again to continue.');
+      return;
+    }
     const data = await response.json();
     if (!response.ok) throw new Error(data.error || 'Could not load summary.');
     const summary = data.summary;
@@ -739,6 +937,161 @@ entryForm.addEventListener('focusout', (event) => {
   }, 0);
 });
 document.getElementById('entry-status').addEventListener('change', markDirty);
+
+document.getElementById('bootstrap-form').addEventListener('submit', async (event) => {
+  event.preventDefault();
+  const status = document.getElementById('auth-status');
+  status.textContent = 'Setting up your account…';
+  try {
+    await responseData(await fetch(`${API}/setup`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        phone: document.getElementById('bootstrap-phone').value,
+        secret: document.getElementById('bootstrap-secret').value,
+      }),
+    }));
+    document.getElementById('bootstrap-secret').value = '';
+    await initializeAuth();
+  } catch (error) {
+    status.textContent = error.message;
+  }
+});
+
+document.getElementById('login-form').addEventListener('submit', async (event) => {
+  event.preventDefault();
+  const status = document.getElementById('auth-status');
+  status.textContent = 'Signing in…';
+  try {
+    await responseData(await fetch(`${API}/auth/login`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        phone: document.getElementById('login-phone').value,
+        code: document.getElementById('login-code').value,
+      }),
+    }));
+    document.getElementById('login-code').value = '';
+    await refreshSession();
+  } catch (error) {
+    status.textContent = error.message;
+  }
+});
+
+document.getElementById('use-password-login').addEventListener('click', () => {
+  showAuthGate('password');
+});
+document.getElementById('use-code-login').addEventListener('click', () => {
+  showAuthGate('login');
+});
+document.getElementById('password-login-form').addEventListener('submit', async (event) => {
+  event.preventDefault();
+  const status = document.getElementById('auth-status');
+  status.textContent = 'Signing in…';
+  try {
+    const response = await fetch(`${API}/auth/password`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        phone: document.getElementById('password-login-phone').value,
+        password: document.getElementById('password-login-password').value,
+      }),
+    });
+    const data = await response.json();
+    if (!response.ok) throw new Error(data.error || 'Could not sign in with password.');
+    document.getElementById('password-login-password').value = '';
+    await refreshSession();
+  } catch (error) {
+    status.textContent = error.message;
+  }
+});
+
+document.getElementById('logout').addEventListener('click', async () => {
+  if (isDirty && !window.confirm('You have unsaved changes. Log out and discard them?')) return;
+  try {
+    await responseData(await fetch(`${API}/auth/logout`, { method: 'POST' }));
+    currentSession = null;
+    isDirty = false;
+    appShell.hidden = true;
+    showPreferredAuth('You have been signed out.');
+  } catch (error) {
+    setStatus(error.message, 'error');
+  }
+});
+
+document.getElementById('manage-access').addEventListener('click', () => {
+  document.getElementById('manage-status').textContent = '';
+  openManageDialog();
+});
+document.getElementById('close-manage').addEventListener('click', () => {
+  if (currentSession?.shops?.length) manageDialog.hidden = true;
+});
+
+document.getElementById('shop-select').addEventListener('change', async (event) => {
+  if (isDirty && !window.confirm('You have unsaved changes. Switch shops and discard them?')) {
+    event.target.value = String(currentSession.active_shop_id);
+    return;
+  }
+  isDirty = false;
+  try {
+    await responseData(await fetch(`${API}/active-shop`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ shop_id: Number(event.target.value) }),
+    }));
+    await refreshSession();
+  } catch (error) {
+    document.getElementById('manage-status').textContent = error.message;
+  }
+});
+
+document.getElementById('create-shop-form').addEventListener('submit', async (event) => {
+  event.preventDefault();
+  const status = document.getElementById('manage-status');
+  status.textContent = 'Registering shop…';
+  try {
+    await responseData(await fetch(`${API}/shops`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ name: document.getElementById('new-shop-name').value }),
+    }));
+    document.getElementById('new-shop-name').value = '';
+    status.textContent = 'Shop registered.';
+    await refreshSession();
+    openManageDialog();
+  } catch (error) {
+    status.textContent = error.message;
+  }
+});
+
+document.getElementById('issue-code-form').addEventListener('submit', async (event) => {
+  event.preventDefault();
+  const status = document.getElementById('manage-status');
+  const role = document.getElementById('invite-role').value;
+  const activeShop = document.getElementById('shop-select').value;
+  status.textContent = 'Generating a one-time code…';
+  document.getElementById('issued-code').hidden = true;
+  try {
+    const data = await responseData(await fetch(`${API}/auth/codes`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        phone: document.getElementById('invite-phone').value,
+        role,
+        shop_id: role === 'staff' ? Number(activeShop) : null,
+      }),
+    }));
+    const codeBox = document.getElementById('issued-code');
+    codeBox.textContent = `One-time code: ${data.code}. Share it privately; it expires in 10 minutes and can be used once.`;
+    codeBox.hidden = false;
+    status.textContent = data.delivery;
+    document.getElementById('invite-phone').value = '';
+    await loadStaff();
+  } catch (error) {
+    status.textContent = error.message;
+  }
+});
+
 setupVoiceButtons();
 updateSaveButton();
 
@@ -748,6 +1101,4 @@ document.querySelectorAll('input[type="number"]').forEach((input) => {
   input.min = '0';
   input.step = 'any';
 });
-const initialScreen = location.hash.replace('#', '');
-if (['history', 'summary'].includes(initialScreen)) showScreen(initialScreen);
-else loadEntry();
+initializeAuth();

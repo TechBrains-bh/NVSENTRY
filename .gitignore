@@ -1,6 +1,7 @@
 __pycache__/
 *.py[cod]
 daily_entries.sqlite3
+local_auth.json
 requirement_base
 .env
 .venv/

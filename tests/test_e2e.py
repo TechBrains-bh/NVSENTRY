@@ -2,6 +2,7 @@
 
 import datetime as dt
 import json
+import os
 import sqlite3
 import sys
 import unittest
@@ -15,21 +16,32 @@ sys.path.insert(0, str(ROOT))
 import app  # noqa: E402
 
 BASE = "http://127.0.0.1:8000"
+SESSION_COOKIE = ""
 
 
 def request(path, method="GET", body=None):
+    global SESSION_COOKIE
     data = None if body is None else json.dumps(body).encode("utf-8")
+    headers = {"Content-Type": "application/json"} if data is not None else {}
+    if SESSION_COOKIE:
+        headers["Cookie"] = SESSION_COOKIE
     req = urllib.request.Request(
         BASE + path,
         data=data,
         method=method,
-        headers={"Content-Type": "application/json"} if data is not None else {},
+        headers=headers,
     )
     try:
         with urllib.request.urlopen(req, timeout=5) as response:
+            set_cookie = response.headers.get("Set-Cookie")
+            if set_cookie:
+                SESSION_COOKIE = set_cookie.split(";", 1)[0]
             raw = response.read().decode("utf-8")
             return response.status, raw, json.loads(raw) if "json" in response.headers.get("Content-Type", "") else None
     except urllib.error.HTTPError as error:
+        set_cookie = error.headers.get("Set-Cookie")
+        if set_cookie:
+            SESSION_COOKIE = set_cookie.split(";", 1)[0]
         raw = error.read().decode("utf-8")
         return error.code, raw, json.loads(raw)
 
@@ -37,6 +49,8 @@ def request(path, method="GET", body=None):
 class ApplicationEndToEndTests(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
+        global SESSION_COOKIE
+        SESSION_COOKIE = ""
         status, html, _ = request("/")
         if status != 200 or "entry-form" not in html or "start-voice" not in html:
             raise RuntimeError("The app is not serving its entry page at http://127.0.0.1:8000")
@@ -44,13 +58,52 @@ class ApplicationEndToEndTests(unittest.TestCase):
         for feature in ("SpeechRecognition", "speechSynthesis", "parseSpokenNumber", "setupVoiceButtons", "hi-IN"):
             if status != 200 or feature not in script:
                 raise RuntimeError(f"The app JavaScript is missing voice feature {feature!r}")
+
+        status, _, setup = request("/api/setup")
+        if status != 200:
+            raise RuntimeError("Could not check the app's initial setup state")
+        if not setup["initialized"]:
+            secret = os.environ.get("NVSENTRY_BOOTSTRAP_SECRET", "")
+            if not secret:
+                raise unittest.SkipTest("Set NVSENTRY_BOOTSTRAP_SECRET to initialize the local app")
+            phone = os.environ.get("NVSENTRY_E2E_PHONE", "+919876543210")
+            status, _, _ = request(
+                "/api/setup",
+                "POST",
+                {"phone": phone, "secret": secret},
+            )
+        else:
+            phone = os.environ.get("NVSENTRY_E2E_PHONE", "")
+            code = os.environ.get("NVSENTRY_E2E_CODE", "")
+            if not phone or not code:
+                raise unittest.SkipTest(
+                    "Set NVSENTRY_E2E_PHONE and NVSENTRY_E2E_CODE for the running app"
+                )
+            status, _, _ = request(
+                "/api/auth/login",
+                "POST",
+                {"phone": phone, "code": code},
+            )
+        if status not in (200, 201):
+            raise RuntimeError("Could not authenticate the end-to-end test account")
+
+        status, _, session = request("/api/session")
+        if status != 200 or not session["shops"]:
+            raise unittest.SkipTest("Register a shop and use an account with shop access")
+        cls.shop_id = session["active_shop_id"] or session["shops"][0]["id"]
+        status, _, _ = request("/api/active-shop", "POST", {"shop_id": cls.shop_id})
+        if status != 200:
+            raise RuntimeError("Could not select the test account's active shop")
+
         start = dt.date(2099, 1, 1)
         cls.test_dates = None
         for offset in range(365 * 5):
             first = (start + dt.timedelta(days=offset)).isoformat()
             second = (start + dt.timedelta(days=offset + 1)).isoformat()
-            first_exists = request(f"/api/entry?date={first}")[2]["exists"]
-            second_exists = request(f"/api/entry?date={second}")[2]["exists"]
+            first_response = request(f"/api/entry?date={first}")
+            second_response = request(f"/api/entry?date={second}")
+            first_exists = first_response[2]["exists"] if first_response[0] == 200 else True
+            second_exists = second_response[2]["exists"] if second_response[0] == 200 else True
             if not first_exists and not second_exists:
                 cls.test_dates = (first, second)
                 break
@@ -62,8 +115,8 @@ class ApplicationEndToEndTests(unittest.TestCase):
         if cls.test_dates:
             with sqlite3.connect(app.DB_PATH) as db:
                 db.executemany(
-                    "DELETE FROM daily_entries WHERE entry_date = ?",
-                    [(value,) for value in cls.test_dates],
+                    "DELETE FROM daily_entries WHERE shop_id = ? AND entry_date = ?",
+                    [(cls.shop_id, value) for value in cls.test_dates],
                 )
 
     def test_save_carry_forward_edit_history_summary_and_validation(self):
